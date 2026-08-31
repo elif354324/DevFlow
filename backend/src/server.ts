@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
 import db from "./db/database";
 import {
   getAllProjects,
@@ -8,7 +7,14 @@ import {
   updateProject,
   deleteProject,
 } from "./services/project.service"; 
-
+import {
+  getTasksByProjectId,
+  getTaskById,
+  createTask,
+  updateTask,
+  deleteTask,
+} from "./services/task.service";
+import { getDashboardStats } from "./services/dashboard.service";
 
 interface CreateTaskRequest{
   title: string;
@@ -70,7 +76,7 @@ const server = createServer(async (request, response) => {
 
       return;
     }
-
+    
     // --------------------------------
     // GET ALL PROJECTS
     // --------------------------------
@@ -125,13 +131,14 @@ const server = createServer(async (request, response) => {
     // TASK ROUTES
     // --------------------------------
 
-    if(url?.match(/^\/projects\/[^/]+\/tasks$/)) {
+    if (url?.match(/^\/projects\/[^/]+\/tasks$/)) {
       const projectId = url.split("/")[2];
 
-      if(!projectId){
+      if (!projectId) {
         sendJson(response, 400, {
           error: "Project ID is required",
         });
+
         return;
       }
 
@@ -139,48 +146,33 @@ const server = createServer(async (request, response) => {
       // GET PROJECT TASKS
       // ------------------------------
 
-      if(method === "GET"){
+      if (method === "GET") {
         const project = getProjectById(projectId);
 
-        if(!project){
-          sendJson(response, 400, {
+        if (!project) {
+          sendJson(response, 404, {
             error: "Project not found",
           });
 
           return;
         }
 
-        const tasks = db
-        .prepare(
-          `
-          SELECT 
-          id,
-          project_id,
-          title,
-          description,
-          status,
-          priority,
-          created_at
-          FROM tasks
-          WHERE project_id = ?
-          ORDER BY created_at DESC
-          `,
-        )
-        .all(projectId);
-      sendJson(response, 200, tasks);
+        const tasks = getTasksByProjectId(projectId);
 
-      return;
+        sendJson(response, 200, tasks);
+
+        return;
       }
 
-      // ------------------------------
+     // ------------------------------
       // CREATE TASK
       // ------------------------------
 
-      if(method === "POST"){
+      if (method === "POST") {
         const project = getProjectById(projectId);
 
-        if(!project) {
-          sendJson(response, 400, {
+        if (!project) {
+          sendJson(response, 404, {
             error: "Project not found",
           });
 
@@ -189,10 +181,10 @@ const server = createServer(async (request, response) => {
 
         const body = await readRequestBody(request);
 
-        try{
+        try {
           const data = JSON.parse(body) as CreateTaskRequest;
 
-          if(!data.title?.trim() || !data.description?.trim()){
+          if (!data.title?.trim() || !data.description?.trim()) {
             sendJson(response, 400, {
               error: "Title and description are required",
             });
@@ -206,51 +198,33 @@ const server = createServer(async (request, response) => {
           const status = data.status ?? "todo";
           const priority = data.priority ?? "medium";
 
-          if(!validStatuses.includes(status)){
+          if (!validStatuses.includes(status)) {
             sendJson(response, 400, {
               error: "Invalid status",
             });
-            
+
             return;
           }
 
-          const task = {
-            id: randomUUID(),
-            project_id: projectId,
-            title: data.title.trim(),
-            description: data.description.trim(),
-            status,
-            priority,
-            created_at: new Date().toISOString(),
-          };
+          if (!validPriorities.includes(priority)) {
+            sendJson(response, 400, {
+              error: "Invalid priority",
+            });
 
-          db.prepare(
-            `
-            INSERT INTO tasks (
-            id,
-            project_id,
-            title,
-            description,
+            return;
+          }
+
+          const task = createTask(projectId, {
+            title: data.title,
+            description: data.description,
             status,
             priority,
-            created_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          `,
-          ).run(
-            task.id,
-            task.project_id,
-            task.title,
-            task.description,
-            task.status,
-            task.priority,
-            task.created_at,
-          );
+          });
 
           sendJson(response, 201, task);
 
           return;
-        } catch{
+        } catch {
           sendJson(response, 400, {
             error: "Invalid JSON",
           });
@@ -259,8 +233,7 @@ const server = createServer(async (request, response) => {
         }
       }
     }
-
-    // ------------------------------------
+// ------------------------------------
 // SINGLE TASK ROUTES
 // ------------------------------------
 
@@ -280,22 +253,7 @@ if (url?.startsWith("/tasks/")) {
   // ------------------------------
 
   if (method === "GET") {
-    const task = db
-      .prepare(
-        `
-        SELECT
-          id,
-          project_id,
-          title,
-          description,
-          status,
-          priority,
-          created_at
-        FROM tasks
-        WHERE id = ?
-        `,
-      )
-      .get(taskId);
+    const task = getTaskById(taskId);
 
     if (!task) {
       sendJson(response, 404, {
@@ -315,15 +273,7 @@ if (url?.startsWith("/tasks/")) {
   // ------------------------------
 
   if (method === "PUT") {
-    const existingTask = db
-      .prepare(
-        `
-        SELECT *
-        FROM tasks
-        WHERE id = ?
-        `,
-      )
-      .get(taskId);
+   const existingTask = getTaskById(taskId);
 
     if (!existingTask) {
       sendJson(response, 404, {
@@ -368,40 +318,12 @@ if (url?.startsWith("/tasks/")) {
         return;
       }
 
-      db.prepare(
-        `
-        UPDATE tasks
-        SET
-          title = ?,
-          description = ?,
-          status = ?,
-          priority = ?
-        WHERE id = ?
-        `,
-      ).run(
-        data.title.trim(),
-        data.description.trim(),
+      const updatedTask = updateTask(taskId, {
+        title: data.title,
+        description: data.description,
         status,
         priority,
-        taskId,
-      );
-
-      const updatedTask = db
-        .prepare(
-          `
-          SELECT
-            id,
-            project_id,
-            title,
-            description,
-            status,
-            priority,
-            created_at
-          FROM tasks
-          WHERE id = ?
-          `,
-        )
-        .get(taskId);
+      });
 
       sendJson(response, 200, updatedTask);
 
@@ -420,22 +342,7 @@ if (url?.startsWith("/tasks/")) {
   // ------------------------------
 
   if (method === "DELETE") {
-    const existingTask = db
-      .prepare(
-        `
-        SELECT
-          id,
-          project_id,
-          title,
-          description,
-          status,
-          priority,
-          created_at
-        FROM tasks
-        WHERE id = ?
-        `,
-      )
-      .get(taskId);
+    const existingTask = getTaskById(taskId);
 
     if (!existingTask) {
       sendJson(response, 404, {
@@ -445,95 +352,26 @@ if (url?.startsWith("/tasks/")) {
       return;
     }
 
-    db.prepare(
-      `
-      DELETE FROM tasks
-      WHERE id = ?
-      `,
-    ).run(taskId);
+    const deletedTask = deleteTask(taskId);
 
     sendJson(response, 200, {
       message: "Task deleted successfully",
-      task: existingTask,
+      task: deletedTask,
     });
 
     return;
   }
 }
 
-  // ------------------------------------
+// ------------------------------------
 // DASHBOARD ROUTES
 // ------------------------------------
 
 if (method === "GET" && url === "/dashboard/stats") {
-  const projectCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM projects
-      `,
-    )
-    .get() as { count: number };
+  const stats = getDashboardStats();
 
-  const taskCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM tasks
-      `,
-    )
-    .get() as { count: number };
-
-  const todoCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM tasks
-      WHERE status = 'todo'
-      `,
-    )
-    .get() as { count: number };
-
-  const inProgressCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM tasks
-      WHERE status = 'in_progress'
-      `,
-    )
-    .get() as { count: number };
-
-  const doneCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM tasks
-      WHERE status = 'done'
-      `,
-    )
-    .get() as { count: number };
-
-  const highPriorityCount = db
-    .prepare(
-      `
-      SELECT COUNT(*) as count
-      FROM tasks
-      WHERE priority = 'high'
-      `,
-    )
-    .get() as { count: number };
-
-  sendJson(response, 200, {
-    projects: projectCount.count,
-    tasks: taskCount.count,
-    todo: todoCount.count,
-    inProgress: inProgressCount.count,
-    done: doneCount.count,
-    highPriority: highPriorityCount.count,
-  });
-
-  return;
+  sendJson(response, 200, stats);
+  return; 
 }
 
 
@@ -572,7 +410,7 @@ if (method === "GET" && url === "/dashboard/stats") {
         return;
       }
 
-      // ------------------------------
+// ------------------------------
 // UPDATE PROJECT
 // ------------------------------
 
@@ -620,29 +458,30 @@ if (method === "PUT") {
   }
 }
 
-    // ------------------------------
-// DELETE PROJECT
-// ------------------------------
+           // ------------------------------
+      // DELETE PROJECT
+      // ------------------------------
 
-if (method === "DELETE") {
-  const project = deleteProject(id);
+      if (method === "DELETE") {
+        const project = deleteProject(id);
 
-  if (!project) {
-    sendJson(response, 404, {
-      error: "Project not found",
-    });
+        if (!project) {
+          sendJson(response, 404, {
+            error: "Project not found",
+          });
 
-    return;
-  }
+          return;
+        }
 
-  sendJson(response, 200, {
-    message: "Project deleted successfully",
-    project,
-  });
+        sendJson(response, 200, {
+          message: "Project deleted successfully",
+          project,
+        });
 
-  return;
-  }  
-}
+        return;
+      }
+    }
+
     // --------------------------------
     // 404
     // --------------------------------
@@ -650,6 +489,7 @@ if (method === "DELETE") {
     sendJson(response, 404, {
       error: "Not Found",
     });
+
   } catch (error) {
     console.error(error);
 
