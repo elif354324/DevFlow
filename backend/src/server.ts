@@ -1,17 +1,14 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import Database from "better-sqlite3";
+import db from "./db/database";
+import {
+  getAllProjects,
+  getProjectById,
+  createProject,
+  updateProject,
+  deleteProject,
+} from "./services/project.service"; 
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-}
-
-interface ProjectRequest {
-  name: string;
-  description: string;
-}
 
 interface CreateTaskRequest{
   title: string;
@@ -19,39 +16,6 @@ interface CreateTaskRequest{
   status?: "todo" | "in_progress" | "done";
   priority?: "low" | "medium" | "high"
 }
-
-// ------------------------------------
-// DATABASE
-// ------------------------------------
-
-const db = new Database("devflow.db");
-
-db.pragma("journal_mode = WAL");
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS projects (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tasks (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'todo',
-  priority TEXT NOT NULL DEFAULT 'medium',
-  created_at TEXT NOT NULL,
-  
-  FOREIGN KEY (project_id)
-    REFERENCES projects(id)
-    ON DELETE CASCADE
-    )
-  `);
 
 // ------------------------------------
 // HELPER FUNCTIONS
@@ -67,22 +31,6 @@ function sendJson(
   response.end(JSON.stringify(data));
 }
 
-function getProject(id: string): Project | undefined {
-  const project = db
-    .prepare(
-      `
-      SELECT
-        id,
-        name,
-        description
-      FROM projects
-      WHERE id = ?
-    `,
-    )
-    .get(id) as Project | undefined;
-
-  return project;
-}
 
 function readRequestBody(
   request: import("node:http").IncomingMessage,
@@ -128,18 +76,7 @@ const server = createServer(async (request, response) => {
     // --------------------------------
 
     if (method === "GET" && url === "/projects") {
-      const projects = db
-        .prepare(
-          `
-          SELECT
-            id,
-            name,
-            description
-          FROM projects
-          ORDER BY created_at DESC
-        `,
-        )
-        .all();
+      const projects = getAllProjects();
 
       sendJson(response, 200, projects);
 
@@ -151,53 +88,38 @@ const server = createServer(async (request, response) => {
     // --------------------------------
 
     if (method === "POST" && url === "/projects") {
-      const body = await readRequestBody(request);
+  const body = await readRequestBody(request);
 
-      try {
-        const data = JSON.parse(body) as ProjectRequest;
+  try {
+    const data = JSON.parse(body) as {
+      name: string;
+      description: string;
+    };
 
-        if (!data.name?.trim() || !data.description?.trim()) {
-          sendJson(response, 400, {
-            error: "Name and description are required",
-          });
+    if (!data.name?.trim() || !data.description?.trim()) {
+      sendJson(response, 400, {
+        error: "Name and description are required",
+      });
 
-          return;
-        }
-
-        const project: Project = {
-          id: randomUUID(),
-          name: data.name.trim(),
-          description: data.description.trim(),
-        };
-
-        db.prepare(
-          `
-          INSERT INTO projects (
-            id,
-            name,
-            description,
-            created_at
-          )
-          VALUES (?, ?, ?, ?)
-        `,
-        ).run(
-          project.id,
-          project.name,
-          project.description,
-          new Date().toISOString(),
-        );
-
-        sendJson(response, 201, project);
-
-        return;
-      } catch {
-        sendJson(response, 400, {
-          error: "Invalid JSON",
-        });
-
-        return;
-      }
+      return;
     }
+
+    const project = createProject({
+      name: data.name,
+      description: data.description,
+    });
+
+    sendJson(response, 201, project);
+
+    return;
+  } catch {
+    sendJson(response, 400, {
+      error: "Invalid JSON",
+    });
+
+    return;
+  }
+}
 
     // --------------------------------
     // TASK ROUTES
@@ -218,7 +140,7 @@ const server = createServer(async (request, response) => {
       // ------------------------------
 
       if(method === "GET"){
-        const project = getProject(projectId);
+        const project = getProjectById(projectId);
 
         if(!project){
           sendJson(response, 400, {
@@ -255,7 +177,7 @@ const server = createServer(async (request, response) => {
       // ------------------------------
 
       if(method === "POST"){
-        const project = getProject(projectId);
+        const project = getProjectById(projectId);
 
         if(!project) {
           sendJson(response, 400, {
@@ -635,7 +557,7 @@ if (method === "GET" && url === "/dashboard/stats") {
       // ------------------------------
 
       if (method === "GET") {
-        const project = getProject(id);
+        const project = getProjectById(id);
 
         if (!project) {
           sendJson(response, 404, {
@@ -651,92 +573,76 @@ if (method === "GET" && url === "/dashboard/stats") {
       }
 
       // ------------------------------
-      // UPDATE PROJECT
-      // ------------------------------
+// UPDATE PROJECT
+// ------------------------------
 
-      if (method === "PUT") {
-        const project = getProject(id);
+if (method === "PUT") {
+  const project = getProjectById(id);
 
-        if (!project) {
-          sendJson(response, 404, {
-            error: "Project not found",
-          });
+  if (!project) {
+    sendJson(response, 404, {
+      error: "Project not found",
+    });
 
-          return;
-        }
+    return;
+  }
 
-        const body = await readRequestBody(request);
+  const body = await readRequestBody(request);
 
-        try {
-          const data = JSON.parse(body) as ProjectRequest;
+  try {
+    const data = JSON.parse(body) as {
+      name: string;
+      description: string;
+    };
 
-          if (!data.name?.trim() || !data.description?.trim()) {
-            sendJson(response, 400, {
-              error: "Name and description are required",
-            });
+    if (!data.name?.trim() || !data.description?.trim()) {
+      sendJson(response, 400, {
+        error: "Name and description are required",
+      });
 
-            return;
-          }
-
-          db.prepare(
-            `
-            UPDATE projects
-            SET
-              name = ?,
-              description = ?
-            WHERE id = ?
-          `,
-          ).run(
-            data.name.trim(),
-            data.description.trim(),
-            id,
-          );
-
-          const updatedProject = getProject(id);
-
-          sendJson(response, 200, updatedProject);
-
-          return;
-        } catch {
-          sendJson(response, 400, {
-            error: "Invalid JSON",
-          });
-
-          return;
-        }
-      }
-
-      // ------------------------------
-      // DELETE PROJECT
-      // ------------------------------
-
-      if (method === "DELETE") {
-        const project = getProject(id);
-
-        if (!project) {
-          sendJson(response, 404, {
-            error: "Project not found",
-          });
-
-          return;
-        }
-
-        db.prepare(
-          `
-          DELETE FROM projects
-          WHERE id = ?
-        `,
-        ).run(id);
-
-        sendJson(response, 200, {
-          message: "Project deleted successfully",
-          project,
-        });
-
-        return;
-      }
+      return;
     }
 
+    const updatedProject = updateProject(id, {
+      name: data.name,
+      description: data.description,
+    });
+
+    sendJson(response, 200, updatedProject);
+
+    return;
+  } catch {
+    sendJson(response, 400, {
+      error: "Invalid JSON",
+    });
+
+    return;
+  }
+}
+
+    // ------------------------------
+// DELETE PROJECT
+// ------------------------------
+
+if (method === "DELETE") {
+  const project = deleteProject(id);
+
+  if (!project) {
+    sendJson(response, 404, {
+      error: "Project not found",
+    });
+
+    return;
+  }
+
+  sendJson(response, 200, {
+    message: "Project deleted successfully",
+    project,
+  });
+
+  return;
+  }  
+}
     // --------------------------------
     // 404
     // --------------------------------
