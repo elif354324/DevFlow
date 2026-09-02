@@ -9,64 +9,80 @@ export interface DashboardStats {
   highPriority: number;
 }
 
-export function getDashboardStats(): DashboardStats {
+export function getDashboardStats(userId: string): DashboardStats {
   const projectCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM projects
+      WHERE user_id = ?
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   const taskCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM tasks
+      INNER JOIN projects
+        ON tasks.project_id = projects.id
+      WHERE projects.user_id = ?
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   const todoCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM tasks
-      WHERE status = 'todo'
+      INNER JOIN projects
+        ON tasks.project_id = projects.id
+      WHERE projects.user_id = ?
+        AND tasks.status = 'todo'
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   const inProgressCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM tasks
-      WHERE status = 'in_progress'
+      INNER JOIN projects
+        ON tasks.project_id = projects.id
+      WHERE projects.user_id = ?
+        AND tasks.status = 'in_progress'
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   const doneCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM tasks
-      WHERE status = 'done'
+      INNER JOIN projects
+        ON tasks.project_id = projects.id
+      WHERE projects.user_id = ?
+        AND tasks.status = 'done'
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   const highPriorityCount = db
     .prepare(
       `
       SELECT COUNT(*) as count
       FROM tasks
-      WHERE priority = 'high'
+      INNER JOIN projects
+        ON tasks.project_id = projects.id
+      WHERE projects.user_id = ?
+        AND tasks.priority = 'high'
       `,
     )
-    .get() as { count: number };
+    .get(userId) as { count: number };
 
   return {
     projects: projectCount.count,

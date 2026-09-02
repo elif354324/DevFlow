@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 const db = new Database("devflow.db");
 
 db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (
@@ -26,6 +27,16 @@ db.exec(`
     FOREIGN KEY (project_id)
       REFERENCES projects(id)
       ON DELETE CASCADE
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
   )
 `);
 

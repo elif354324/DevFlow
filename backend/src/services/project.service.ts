@@ -5,6 +5,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  created_at?: string;
 }
 
 export interface CreateProjectData {
@@ -12,41 +13,52 @@ export interface CreateProjectData {
   description: string;
 }
 
-export function getAllProjects() {
+export function getAllProjects(userId: string) {
   return db
     .prepare(
       `
       SELECT
         id,
         name,
-        description
+        description,
+        created_at
       FROM projects
+      WHERE user_id = ?
       ORDER BY created_at DESC
       `,
     )
-    .all();
+    .all(userId);
 }
 
-export function getProjectById(id: string): Project | undefined {
+export function getProjectById(
+  id: string,
+  userId: string,
+): Project | undefined {
   return db
     .prepare(
       `
       SELECT
         id,
         name,
-        description
+        description,
+        created_at
       FROM projects
       WHERE id = ?
+        AND user_id = ?
       `,
     )
-    .get(id) as Project | undefined;
+    .get(id, userId) as Project | undefined;
 }
 
-export function createProject(data: CreateProjectData): Project {
+export function createProject(
+  userId: string,
+  data: CreateProjectData,
+): Project {
   const project: Project = {
     id: randomUUID(),
     name: data.name.trim(),
     description: data.description.trim(),
+    created_at: new Date().toISOString(),
   };
 
   db.prepare(
@@ -55,15 +67,17 @@ export function createProject(data: CreateProjectData): Project {
       id,
       name,
       description,
-      created_at
+      created_at,
+      user_id
     )
-    VALUES (?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?)
     `,
   ).run(
     project.id,
     project.name,
     project.description,
-    new Date().toISOString(),
+    project.created_at,
+    userId,
   );
 
   return project;
@@ -71,9 +85,10 @@ export function createProject(data: CreateProjectData): Project {
 
 export function updateProject(
   id: string,
+  userId: string,
   data: CreateProjectData,
 ): Project | undefined {
-  const existingProject = getProjectById(id);
+  const existingProject = getProjectById(id, userId);
 
   if (!existingProject) {
     return undefined;
@@ -86,18 +101,23 @@ export function updateProject(
       name = ?,
       description = ?
     WHERE id = ?
+      AND user_id = ?
     `,
   ).run(
     data.name.trim(),
     data.description.trim(),
     id,
+    userId,
   );
 
-  return getProjectById(id);
+  return getProjectById(id, userId);
 }
 
-export function deleteProject(id: string): Project | undefined {
-  const project = getProjectById(id);
+export function deleteProject(
+  id: string,
+  userId: string,
+): Project | undefined {
+  const project = getProjectById(id, userId);
 
   if (!project) {
     return undefined;
@@ -107,8 +127,9 @@ export function deleteProject(id: string): Project | undefined {
     `
     DELETE FROM projects
     WHERE id = ?
+      AND user_id = ?
     `,
-  ).run(id);
+  ).run(id, userId);
 
   return project;
 }
