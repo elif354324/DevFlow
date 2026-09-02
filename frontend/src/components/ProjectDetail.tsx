@@ -631,6 +631,18 @@ function ProjectDetail({
     );
   }
 
+  const totalTasks = tasks.length;
+
+  const completedTasks = tasks.filter(
+    (task) => task.status === "done",
+  ).length;
+
+  const completionRate =
+    totalTasks === 0
+      ? 0
+      : Math.round(
+          (completedTasks / totalTasks) * 100,
+        );
   const filteredTasks =
     getFilteredTasks();
 
@@ -688,6 +700,72 @@ function ProjectDetail({
           {message}
         </div>
       )}
+
+            <div
+        className="card"
+        style={{
+          marginBottom: "24px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "12px",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0 }}>
+              Project Progress
+            </h2>
+
+            <p
+              style={{
+                margin: "6px 0 0",
+                color: "#6b7280",
+              }}
+            >
+              Task completion for this project
+            </p>
+          </div>
+
+          <strong style={{ fontSize: "24px" }}>
+            {completionRate}%
+          </strong>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            height: "12px",
+            background: "#e5e7eb",
+            borderRadius: "999px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${completionRate}%`,
+              height: "100%",
+              background: "#2563eb",
+              borderRadius: "999px",
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            margin: "10px 0 0",
+            color: "#6b7280",
+            fontSize: "14px",
+          }}
+        >
+          {completedTasks} of {totalTasks} tasks
+          completed
+        </p>
+      </div>
 
       {showTaskForm && (
         <div
