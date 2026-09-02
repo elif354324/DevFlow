@@ -7,6 +7,7 @@ export interface DashboardStats {
   inProgress: number;
   done: number;
   highPriority: number;
+  completionRate : number;
 }
 
 export function getDashboardStats(userId: string): DashboardStats {
@@ -84,12 +85,20 @@ export function getDashboardStats(userId: string): DashboardStats {
     )
     .get(userId) as { count: number };
 
-  return {
-    projects: projectCount.count,
-    tasks: taskCount.count,
-    todo: todoCount.count,
-    inProgress: inProgressCount.count,
-    done: doneCount.count,
-    highPriority: highPriorityCount.count,
-  };
+  const completionRate =
+  taskCount.count === 0
+    ? 0
+    : Math.round(
+        (doneCount.count / taskCount.count) * 100,
+      );
+
+return {
+  projects: projectCount.count,
+  tasks: taskCount.count,
+  todo: todoCount.count,
+  inProgress: inProgressCount.count,
+  done: doneCount.count,
+  highPriority: highPriorityCount.count,
+  completionRate,
+};
 }

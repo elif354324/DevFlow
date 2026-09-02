@@ -11,6 +11,7 @@ interface DashboardStats {
   inProgress: number;
   done: number;
   highPriority: number;
+  completionRate: number;
 }
 
 interface StatCardProps {
@@ -197,6 +198,67 @@ function Dashboard({
               description="Completed tasks"
             />
           </div>
+          <br />
+
+<div className="card">
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "12px",
+    }}
+  >
+    <div>
+      <h2 style={{ margin: 0 }}>
+        Task Completion
+      </h2>
+
+      <p
+        style={{
+          margin: "6px 0 0",
+          color: "#6b7280",
+        }}
+      >
+        Overall project task progress
+      </p>
+    </div>
+
+    <strong style={{ fontSize: "24px" }}>
+      {stats.completionRate}%
+    </strong>
+  </div>
+
+  <div
+    style={{
+      width: "100%",
+      height: "12px",
+      background: "#e5e7eb",
+      borderRadius: "999px",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        width: `${stats.completionRate}%`,
+        height: "100%",
+        background: "#2563eb",
+        borderRadius: "999px",
+        transition: "width 0.3s ease",
+      }}
+    />
+  </div>
+
+  <p
+    style={{
+      margin: "10px 0 0",
+      color: "#6b7280",
+      fontSize: "14px",
+    }}
+  >
+    {stats.done} of {stats.tasks} tasks completed
+  </p>
+</div>
         </>
       )}
     </main>
