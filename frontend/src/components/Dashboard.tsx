@@ -14,6 +14,14 @@ interface DashboardStats {
   completionRate: number;
 }
 
+interface ProjectProgress {
+  id: string;
+  name: string;
+  totalTasks: number;
+  completedTasks: number;
+  completionRate: number;
+}
+
 interface StatCardProps {
   title: string;
   value: number;
@@ -65,6 +73,9 @@ function Dashboard({
   const [stats, setStats] =
     useState<DashboardStats | null>(null);
 
+  const [projectProgress, setProjectProgress] =
+  useState<ProjectProgress[]>([]);
+
   const [message, setMessage] = useState(
     "Loading dashboard...",
   );
@@ -109,8 +120,44 @@ function Dashboard({
       }
     }
 
+      async function loadProjectProgress() {
+      const token =
+        localStorage.getItem("token");
+
+      if (!token) {
+        onLogout();
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "http://localhost:3000/dashboard/project-progress",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return;
+        }
+
+        setProjectProgress(data);
+      } catch {
+        // Project progress yüklenemezse
+        // dashboard'un geri kalanını göstermeye devam ediyoruz.
+      }
+    }
+
     loadDashboardStats();
+    loadProjectProgress();
   }, [onLogout]);
+
+  
 
   if (message && !stats) {
     return (
@@ -258,6 +305,64 @@ function Dashboard({
   >
     {stats.done} of {stats.tasks} tasks completed
   </p>
+
+            <br />
+
+          <h2>Project Progress</h2>
+
+          <div className="grid grid-3">
+            {projectProgress.map((project) => (
+              <div className="card" key={project.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <h3 style={{ margin: 0 }}>
+                    {project.name}
+                  </h3>
+
+                  <strong>
+                    {project.completionRate}%
+                  </strong>
+                </div>
+
+                <div
+                  style={{
+                    width: "100%",
+                    height: "10px",
+                    background: "#e5e7eb",
+                    borderRadius: "999px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${project.completionRate}%`,
+                      height: "100%",
+                      background: "#2563eb",
+                      borderRadius: "999px",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+
+                <p
+                  style={{
+                    margin: "10px 0 0",
+                    color: "#6b7280",
+                    fontSize: "14px",
+                  }}
+                >
+                  {project.completedTasks} of{" "}
+                  {project.totalTasks} tasks completed
+                </p>
+              </div>
+            ))}
+          </div>
 </div>
         </>
       )}

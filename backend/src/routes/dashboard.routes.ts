@@ -1,4 +1,7 @@
-import { getDashboardStats } from "../services/dashboard.service";
+import { 
+  getDashboardStats,
+  getProjectProgress
+ } from "../services/dashboard.service";
 import { sendJson } from "../utils/http";
 import {
   AuthenticatedRequest,
@@ -23,6 +26,23 @@ export function handleDashboardRoute(
 
     return true;
   }
+
+  if (
+  method === "GET" &&
+  url === "/dashboard/project-progress"
+) {
+  if (!authenticate(request, response)) {
+    return true;
+  }
+
+  const progress = getProjectProgress(
+    request.user!.userId,
+  );
+
+  sendJson(response, 200, progress);
+
+  return true;
+}
 
   return false;
 }
