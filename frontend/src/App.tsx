@@ -51,13 +51,29 @@ function App() {
           </div>
 
           <div className="navbar-links">
-            <button onClick={() => setView("dashboard")}>
+            
+            <button
+              className={
+                view === "dashboard"
+                  ? "navbar-button active"
+                  : "navbar-button"
+                }
+              onClick={() => setView("dashboard")}
+            >
               Dashboard
             </button>
 
-            <button onClick={() => setView("projects")}>
+            <button
+              className={
+                view === "projects"
+                  ? "navbar-button active"
+                  : "navbar-button"
+              }
+              onClick={() => setView("projects")}
+            >
               Projects
             </button>
+
           </div>
         </nav>
       )}

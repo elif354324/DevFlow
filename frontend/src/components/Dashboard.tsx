@@ -26,41 +26,38 @@ interface StatCardProps {
   title: string;
   value: number;
   description: string;
+  variant?: "default" | "danger" | "blue" | "success";
 }
 
 function StatCard({
   title,
   value,
   description,
+  variant = "default",
 }: StatCardProps) {
   return (
-    <div className="card">
-      <p
-        style={{
-          margin: 0,
-          color: "#6b7280",
-          fontSize: "14px",
-        }}
-      >
-        {title}
-      </p>
+    <div className={`dashboard-stat-card ${variant}`}>
+      <div className="dashboard-stat-top">
+        <span className="dashboard-stat-title">
+          {title}
+        </span>
 
-      <h2
-        style={{
-          margin: "8px 0",
-          fontSize: "32px",
-        }}
-      >
+        <span className="dashboard-stat-icon">
+          {variant === "danger"
+            ? "!"
+            : variant === "success"
+              ? "✓"
+              : variant === "blue"
+                ? "◆"
+                : "•"}
+        </span>
+      </div>
+
+      <div className="dashboard-stat-value">
         {value}
-      </h2>
+      </div>
 
-      <p
-        style={{
-          margin: 0,
-          color: "#6b7280",
-          fontSize: "14px",
-        }}
-      >
+      <p className="dashboard-stat-description">
         {description}
       </p>
     </div>
@@ -74,7 +71,7 @@ function Dashboard({
     useState<DashboardStats | null>(null);
 
   const [projectProgress, setProjectProgress] =
-  useState<ProjectProgress[]>([]);
+    useState<ProjectProgress[]>([]);
 
   const [message, setMessage] = useState(
     "Loading dashboard...",
@@ -120,7 +117,7 @@ function Dashboard({
       }
     }
 
-      async function loadProjectProgress() {
+    async function loadProjectProgress() {
       const token =
         localStorage.getItem("token");
 
@@ -157,8 +154,6 @@ function Dashboard({
     loadProjectProgress();
   }, [onLogout]);
 
-  
-
   if (message && !stats) {
     return (
       <main className="page">
@@ -170,19 +165,18 @@ function Dashboard({
   }
 
   return (
-    <main className="page">
-      <div className="page-header">
+    <main className="page dashboard-page">
+      <div className="page-header dashboard-header">
         <div>
+          <p className="dashboard-eyebrow">
+            DEVELOPER WORKSPACE
+          </p>
+
           <h1>Dashboard</h1>
 
-          <p
-            style={{
-              color: "#6b7280",
-              marginTop: "6px",
-            }}
-          >
-            Overview of your development
-            projects and tasks.
+          <p className="dashboard-subtitle">
+            Overview of your development projects
+            and tasks.
           </p>
         </div>
 
@@ -202,168 +196,159 @@ function Dashboard({
 
       {stats && (
         <>
-          <div className="grid grid-3">
-            <StatCard
-              title="Projects"
-              value={stats.projects}
-              description="Total projects"
-            />
+          <section>
+            <div className="dashboard-stats-grid">
+              <StatCard
+                title="Projects"
+                value={stats.projects}
+                description="Total projects"
+                variant="blue"
+              />
 
-            <StatCard
-              title="Tasks"
-              value={stats.tasks}
-              description="Total tasks"
-            />
+              <StatCard
+                title="Tasks"
+                value={stats.tasks}
+                description="Total tasks"
+              />
 
-            <StatCard
-              title="High Priority"
-              value={stats.highPriority}
-              description="Tasks requiring attention"
-            />
-          </div>
+              <StatCard
+                title="High Priority"
+                value={stats.highPriority}
+                description="Tasks requiring attention"
+                variant="danger"
+              />
+            </div>
+          </section>
 
-          <br />
+          <section className="dashboard-section">
+            <div className="dashboard-section-header">
+              <div>
+                <h2>Task Overview</h2>
+                <p>
+                  Current status of your tasks.
+                </p>
+              </div>
+            </div>
 
-          <h2>Task Overview</h2>
+            <div className="dashboard-stats-grid">
+              <StatCard
+                title="To Do"
+                value={stats.todo}
+                description="Waiting to be started"
+              />
 
-          <div className="grid grid-3">
-            <StatCard
-              title="To Do"
-              value={stats.todo}
-              description="Tasks waiting to be started"
-            />
+              <StatCard
+                title="In Progress"
+                value={stats.inProgress}
+                description="Currently being worked on"
+                variant="blue"
+              />
 
-            <StatCard
-              title="In Progress"
-              value={stats.inProgress}
-              description="Tasks currently being worked on"
-            />
+              <StatCard
+                title="Done"
+                value={stats.done}
+                description="Completed tasks"
+                variant="success"
+              />
+            </div>
+          </section>
 
-            <StatCard
-              title="Done"
-              value={stats.done}
-              description="Completed tasks"
-            />
-          </div>
-          <br />
+          <section className="dashboard-section">
+            <div className="dashboard-insights-grid">
+              <div className="dashboard-panel">
+                <div className="dashboard-panel-header">
+                  <div>
+                    <h2>Task Completion</h2>
 
-<div className="card">
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "12px",
-    }}
-  >
-    <div>
-      <h2 style={{ margin: 0 }}>
-        Task Completion
-      </h2>
+                    <p>
+                      Overall project task progress
+                    </p>
+                  </div>
 
-      <p
-        style={{
-          margin: "6px 0 0",
-          color: "#6b7280",
-        }}
-      >
-        Overall project task progress
-      </p>
-    </div>
-
-    <strong style={{ fontSize: "24px" }}>
-      {stats.completionRate}%
-    </strong>
-  </div>
-
-  <div
-    style={{
-      width: "100%",
-      height: "12px",
-      background: "#e5e7eb",
-      borderRadius: "999px",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        width: `${stats.completionRate}%`,
-        height: "100%",
-        background: "#2563eb",
-        borderRadius: "999px",
-        transition: "width 0.3s ease",
-      }}
-    />
-  </div>
-
-  <p
-    style={{
-      margin: "10px 0 0",
-      color: "#6b7280",
-      fontSize: "14px",
-    }}
-  >
-    {stats.done} of {stats.tasks} tasks completed
-  </p>
-
-            <br />
-
-          <h2>Project Progress</h2>
-
-          <div className="grid grid-3">
-            {projectProgress.map((project) => (
-              <div className="card" key={project.id}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <h3 style={{ margin: 0 }}>
-                    {project.name}
-                  </h3>
-
-                  <strong>
-                    {project.completionRate}%
+                  <strong className="completion-value">
+                    {stats.completionRate}%
                   </strong>
                 </div>
 
-                <div
-                  style={{
-                    width: "100%",
-                    height: "10px",
-                    background: "#e5e7eb",
-                    borderRadius: "999px",
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="dashboard-progress-track large">
                   <div
+                    className="dashboard-progress-fill"
                     style={{
-                      width: `${project.completionRate}%`,
-                      height: "100%",
-                      background: "#2563eb",
-                      borderRadius: "999px",
-                      transition: "width 0.3s ease",
+                      width: `${stats.completionRate}%`,
                     }}
                   />
                 </div>
 
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: "#6b7280",
-                    fontSize: "14px",
-                  }}
-                >
-                  {project.completedTasks} of{" "}
-                  {project.totalTasks} tasks completed
-                </p>
+                <div className="dashboard-panel-footer">
+                  <span>
+                    {stats.done} of {stats.tasks} tasks
+                    completed
+                  </span>
+
+                  <span>
+                    {stats.tasks === 0
+                      ? "No tasks yet"
+                      : stats.completionRate === 100
+                        ? "All tasks completed"
+                        : "Keep going"}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
-</div>
+
+              <div className="dashboard-panel">
+                <div className="dashboard-panel-header">
+                  <div>
+                    <h2>Project Progress</h2>
+
+                    <p>
+                      Progress across your projects
+                    </p>
+                  </div>
+                </div>
+
+                <div className="dashboard-project-list">
+                  {projectProgress.length === 0 ? (
+                    <p className="dashboard-empty">
+                      No projects yet.
+                    </p>
+                  ) : (
+                    projectProgress.map((project) => (
+                      <div
+                        className="dashboard-project-item"
+                        key={project.id}
+                      >
+                        <div className="dashboard-project-header">
+                          <div>
+                            <strong>
+                              {project.name}
+                            </strong>
+
+                            <span>
+                              {project.completedTasks} of{" "}
+                              {project.totalTasks} tasks
+                            </span>
+                          </div>
+
+                          <strong>
+                            {project.completionRate}%
+                          </strong>
+                        </div>
+
+                        <div className="dashboard-progress-track">
+                          <div
+                            className="dashboard-progress-fill"
+                            style={{
+                              width: `${project.completionRate}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
         </>
       )}
     </main>
